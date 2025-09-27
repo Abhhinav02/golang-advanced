@@ -6,21 +6,23 @@ import (
 )
 
 func main() {
-	// Sync between 2 channels 🚀
-	numGoroutines:=3
-	done:=make(chan int,3)
+	// Syncing DATA EXCHANGE 🚀
+	// Here, we use channels to pass data
+	// Using that data in our app
 
-	for i:=range numGoroutines{
-	go func(id int) {
-		fmt.Printf("Goroutine %d working..\n",id)
-		time.Sleep(time.Second)
-		done<-id
-	}(i)
+	numGoroutines:= 5
+	data:=make(chan string)
+
+	go func() {
+		for i:=range numGoroutines{
+			data <- "☑️ Hello "+fmt.Sprint(i)
+			time.Sleep(100 * time.Millisecond)
 	}
+	close(data)
+	}()
+	
 
-	for range numGoroutines{
-		<-done // Wait for each goroutine to finish
-	}
-
-	fmt.Println("All goroutines are finished.. ✅")
+	for val:=range data{
+	fmt.Println("Received value:",val, ": ",time.Now())
+	} 	
 }
