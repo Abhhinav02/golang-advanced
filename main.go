@@ -12,23 +12,26 @@ import (
 
 
 func main() {
-	// ======== Scenarion1. BLOCKING ON SEND-ONLY IF THE BUFFER IS FULL
+	// ======== Scenario:1 BLOCKING ON SEND-ONLY IF THE BUFFER IS FULL
 	ch:= make(chan int, 2)
 	ch <- 1
 	ch <- 2
 	// ch <- 3 // ❌ Err. - DEADLOCK!
 
+	fmt.Println("Receiving from buffer.. ⬅️")
+
 	go func(){
+		//fmt.Println("Goroutine 2 second timer started.. ")
 		time.Sleep(2 * time.Second)
 		fmt.Println("✔️ Received",<-ch)
 	}()
 
-	fmt.Println("Blocking starts..")
+	//fmt.Println("Blocking starts..")
 	ch <-3 // Blocks because the buffer is full
-	fmt.Println("Blocking ends..")
-	fmt.Println("✔️ Received",<-ch)
-	fmt.Println("✔️ Received",<-ch)
+	//fmt.Println("Blocking ends..")
+	//fmt.Println("✔️ Received",<-ch)
+	//fmt.Println("✔️ Received",<-ch)
 	// fmt.Println("✔️ Received",<-ch) // Fatal Err. ❌
 
-	fmt.Println("Buffered Channels.. ✅")
+	//fmt.Println("Buffered Channels.. ✅")
 }
