@@ -5,33 +5,22 @@ import (
 	"time"
 )
 
-// syntax: make(chan Type, cpacity)
-
-//  The channel's buffer is initialized with the specified buffer capacity. If zero, or the size is omitted, the channel is unbuffered.
-
-
-
 func main() {
-	// ======== Scenario:1 BLOCKING ON SEND-ONLY IF THE BUFFER IS FULL
-	ch:= make(chan int, 2)
-	ch <- 1
-	ch <- 2
-	// ch <- 3 // ❌ Err. - DEADLOCK!
+	// Sync between 2 channels 🚀
+	numGoroutines:=3
+	done:=make(chan int,3)
 
-	fmt.Println("Receiving from buffer.. ⬅️")
+	for i:=range numGoroutines{
+	go func(id int) {
+		fmt.Printf("Goroutine %d working..\n",id)
+		time.Sleep(time.Second)
+		done<-id
+	}(i)
+	}
 
-	go func(){
-		//fmt.Println("Goroutine 2 second timer started.. ")
-		time.Sleep(2 * time.Second)
-		fmt.Println("✔️ Received",<-ch)
-	}()
+	for range numGoroutines{
+		<-done // Wait for each goroutine to finish
+	}
 
-	//fmt.Println("Blocking starts..")
-	ch <-3 // Blocks because the buffer is full
-	//fmt.Println("Blocking ends..")
-	//fmt.Println("✔️ Received",<-ch)
-	//fmt.Println("✔️ Received",<-ch)
-	// fmt.Println("✔️ Received",<-ch) // Fatal Err. ❌
-
-	//fmt.Println("Buffered Channels.. ✅")
+	fmt.Println("All goroutines are finished.. ✅")
 }
