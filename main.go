@@ -2,38 +2,29 @@ package main
 
 import "fmt"
 
+// multiplexing - kinda like switch-case
 func main() {
-	ch := make(chan int)
-	rCh := make(chan int)
+	ch1:= make(chan int)
+	ch2:= make(chan int)
 
-	// send-only channel (producer)
-	go func(ch chan<- int) {
-		for i := range 5 {
-			ch <- i
-		}
-		close(ch)
-	}(ch)
+	//! Err - DEADLOCK ⚠️
+	// msg1:= <-ch1
+	// fmt.Println("✅ Received from ch1:",msg1)
 
-	for val := range ch {
-		fmt.Println("🚀 Received:",val)
+	// msg2:= <-ch2
+	// fmt.Println("☑️ Received from ch2:",msg2)
+
+	//! SOLUTION 🚀
+	select {
+	case msg:= <-ch1:
+	fmt.Println("✅ Received from ch1:",msg)
+
+	case msg:= <-ch2:
+	fmt.Println("☑️ Received from ch2:",msg)
+
+	default:
+	fmt.Println("🔴 Default Case - No channels ready! ")
 	}
 
-	// receive-only channel (consumer)
-	go func() {
-		for i := range 5 {
-			rCh <- i
-		}
-		close(rCh)
-	}()
-
-	receiveData(rCh)
+	//fmt.Println("End of the program.. 🔴")
 }
-
-// receive-only channel (consumer)
-func receiveData(ch <- chan int){
-	for val := range ch {
-		fmt.Println("✅ Received (receive-only):",val)
-	}
-}
-
-//! 💡 PRODUCER and CONSUMER pattern
