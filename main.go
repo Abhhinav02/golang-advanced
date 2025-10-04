@@ -1,40 +1,37 @@
 package main
 
-import (
-	"fmt"
-	"time"
-)
+import "fmt"
 
-// NON-BLOCKING OPS.
+func producer(ch chan <-int){
+	for i:=range 5{
+		ch<-i
+	}
+	close(ch)
+}
 
-func main() {
-
-	// non-blocking Ops. in REAL-TIME-SYSTEMS
-	dataCh := make(chan int)
-	quitCh := make(chan bool)
-
-	go func(){
-		for {
-			select {
-			case d:=<-dataCh:
-				fmt.Println("✅ Data received:",d)
-			
-			case <-quitCh:
-				fmt.Println("Stopping... 🔴")
-				return
-			default:
-				fmt.Println("Waiting for data... ⏳")
-				time.Sleep(500 * time.Millisecond)
+func filter(in <- chan int, out chan <-int){
+	for val:=range in{
+		if val%2==0{
+			// pass to the sender/other channel
+			out<-val
 		}
 	}
-	}()
+	close(out)
+}
 
-	for i:=range 5{
-		dataCh<-i
-		time.Sleep(time.Second)
+func main() {
+	ch1 := make(chan int)
+	ch2 := make(chan int)
+
+	go producer(ch1)
+	go filter(ch1,ch2)
+
+	for val:=range ch2{
+		fmt.Println("Val:",val)
 	}
-
-	quitCh<-true
-
-
+// OP:
+// $ go run .
+// Val: 0
+// Val: 2
+// Val: 4
 }
