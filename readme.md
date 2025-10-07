@@ -2553,9 +2553,235 @@ Think of a **channel** as a **pipeline**:
 
 
 
+Let’s go deep into **`context` in Go**, since it’s one of the most *core concurrency primitives* introduced to help manage goroutines and their lifecycles.
 
+---
 
+## 🧩 What is `context` in Go?
 
+The **`context` package** in Go (part of the standard library) is designed to manage **cancellation, timeouts, and request-scoped values** across multiple goroutines.
+
+You’ll often see it in networked servers, APIs, or concurrent programs — anywhere where one operation spawns multiple goroutines that should **terminate together** when something goes wrong or when the parent operation finishes.
+
+```go
+import "context"
+```
+
+---
+
+## 🚦 Why Do We Need Context?
+
+Let’s say we start a web request, and that request spawns several goroutines:
+
+* One hits a database
+* Another calls an external API
+* Another logs something asynchronously
+
+If the **client cancels the request** (e.g., closes their browser tab), we don’t want these goroutines to keep running — they’d waste memory and CPU.
+
+This is where **context** steps in:
+It provides a **signal mechanism** for cancellation, timeouts, and deadlines that can be passed to all goroutines.
+
+---
+
+## 🧠 Core Concepts
+
+### 1. Context is Immutable
+
+You **don’t modify** a context.
+Instead, you **derive new contexts** from existing ones using functions like:
+
+* `context.WithCancel`
+* `context.WithTimeout`
+* `context.WithDeadline`
+* `context.WithValue`
+
+Each derived context **inherits** from its parent.
+
+---
+
+### 2. The Root Contexts
+
+There are two root contexts:
+
+* `context.Background()`
+
+  > Used as the top-level root (e.g., in `main`, `init`, or tests).
+* `context.TODO()`
+
+  > Used as a placeholder when you’re not sure what to use yet.
+
+```go
+ctx := context.Background()
+```
+
+---
+
+## 🧩 Types of Derived Contexts
+
+### 1. **`WithCancel`**
+
+Cancels manually when the parent says so.
+
+```go
+ctx, cancel := context.WithCancel(context.Background())
+
+go func() {
+    time.Sleep(2 * time.Second)
+    cancel() // signal cancellation
+}()
+
+select {
+case <-ctx.Done():
+    fmt.Println("Cancelled:", ctx.Err())
+}
+```
+
+* `ctx.Done()` returns a `<-chan struct{}` that’s closed when the context is canceled.
+* `ctx.Err()` returns an error like:
+
+  * `context.Canceled`
+  * `context.DeadlineExceeded`
+
+---
+
+### 2. **`WithTimeout`**
+
+Cancels automatically after a specified duration.
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+defer cancel()
+
+select {
+case <-time.After(5 * time.Second):
+    fmt.Println("Operation done")
+case <-ctx.Done():
+    fmt.Println("Timeout:", ctx.Err())
+}
+```
+
+After 3 seconds, the context automatically signals all goroutines to stop.
+
+---
+
+### 3. **`WithDeadline`**
+
+Similar to `WithTimeout`, but you specify an **absolute time** instead of a duration.
+
+```go
+deadline := time.Now().Add(2 * time.Second)
+ctx, cancel := context.WithDeadline(context.Background(), deadline)
+defer cancel()
+```
+
+---
+
+### 4. **`WithValue`**
+
+Passes **request-scoped data** (like user ID, trace ID, etc.) down the call chain.
+⚠️ It’s **not for passing optional parameters** — just metadata for requests.
+
+```go
+ctx := context.WithValue(context.Background(), "userID", 42)
+
+process(ctx)
+
+func process(ctx context.Context) {
+    fmt.Println("User ID:", ctx.Value("userID"))
+}
+```
+
+---
+
+## 🔄 How It Works Internally (CS-level)
+
+Under the hood:
+
+* Each `context.Context` implements this interface:
+
+```go
+type Context interface {
+    Deadline() (deadline time.Time, ok bool)
+    Done() <-chan struct{}
+    Err() error
+    Value(key any) any
+}
+```
+
+* When a derived context (e.g., from `WithCancel`) is created, Go:
+
+  * Creates a **new struct** holding a parent pointer.
+  * Spawns an internal goroutine listening for parent cancellation.
+  * When canceled, it **closes a `Done` channel**, which **notifies all children** down the tree.
+
+So the propagation chain looks like:
+
+```
+Background → WithCancel → WithTimeout → WithValue
+```
+
+If you cancel the parent, all descendants are canceled too.
+
+---
+
+## ⚙️ Typical Use Case (Web Server)
+
+Let’s look at a realistic example:
+
+```go
+func main() {
+    http.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
+        ctx := r.Context()
+        result, err := fetchData(ctx)
+        if err != nil {
+            fmt.Fprintln(w, "Error:", err)
+            return
+        }
+        fmt.Fprintln(w, "Result:", result)
+    })
+
+    http.ListenAndServe(":8080", nil)
+}
+
+func fetchData(ctx context.Context) (string, error) {
+    select {
+    case <-time.After(5 * time.Second): // simulate work
+        return "Fetched data!", nil
+    case <-ctx.Done():
+        return "", ctx.Err()
+    }
+}
+```
+
+If the client closes the browser, the server cancels `r.Context()`, causing `fetchData` to stop.
+
+---
+
+## ⚠️ Common Mistakes
+
+| Mistake                                             | Why It’s Wrong                                                  |
+| --------------------------------------------------- | --------------------------------------------------------------- |
+| Not calling `cancel()`                              | Leaks resources — internal timers/goroutines stay alive         |
+| Using `context.WithValue` for passing business data | Context is for request-scoped metadata, not function parameters |
+| Creating new contexts deep in your code             | Always derive from the parent context (propagation chain)       |
+
+---
+
+## ✅ Summary
+
+| Feature                  | Purpose                                     |
+| ------------------------ | ------------------------------------------- |
+| `context.Background()`   | Root context                                |
+| `context.TODO()`         | Placeholder context                         |
+| `context.WithCancel()`   | Manual cancellation                         |
+| `context.WithTimeout()`  | Automatic cancellation after duration       |
+| `context.WithDeadline()` | Automatic cancellation after absolute time  |
+| `context.WithValue()`    | Carry metadata across goroutines            |
+| `ctx.Done()`             | Returns a channel that signals cancellation |
+| `ctx.Err()`              | Returns error after cancellation            |
+
+---
 
 
 

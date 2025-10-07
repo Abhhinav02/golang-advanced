@@ -1,37 +1,21 @@
 package main
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
-func producer(ch chan <-int){
-	for i:=range 5{
-		ch<-i
-	}
-	close(ch)
-}
-
-func filter(in <- chan int, out chan <-int){
-	for val:=range in{
-		if val%2==0{
-			// pass to the sender/other channel
-			out<-val
-		}
-	}
-	close(out)
-}
-
+// context - instance of a struct / obj.
 func main() {
-	ch1 := make(chan int)
-	ch2 := make(chan int)
+	todoCtxt := context.TODO()
+	bgCtxt := context.Background()
 
-	go producer(ch1)
-	go filter(ch1,ch2)
+	ctxt:= context.WithValue(todoCtxt, "name","Skyy")
+	ctxtBg:= context.WithValue(bgCtxt, "city","Kolkata")
 
-	for val:=range ch2{
-		fmt.Println("Val:",val)
-	}
-// OP:
-// $ go run .
-// Val: 0
-// Val: 2
-// Val: 4
+	fmt.Println(ctxt)
+	fmt.Println(ctxt.Value("name"))
+
+	fmt.Println(ctxtBg)
+	fmt.Println(ctxtBg.Value("city"))
 }
