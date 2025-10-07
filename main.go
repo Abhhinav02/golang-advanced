@@ -3,51 +3,67 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 )
 
-// context.TODO() example
-func checkEvenOrOdd(ctx context.Context, num int )string{
-	select {
-	case <-ctx.Done():
-		return "Operation cancelled!"
-	default:
-		if num%2==0{
-			return  fmt.Sprintf("%d is even ✅",num)
-		} else{
-			return  fmt.Sprintf("%d is odd ☑️",num)
-		}	
+// ctxt with cancel() example
+// manually run the cancel func()
+
+func doWork(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println("🔴 Work cancelled:", ctx.Err())
+			return
+		default:
+			fmt.Println("Working.. ✅")
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
-	
 }
 
 func main() {
-	ctx:= context.TODO()
-	result:= checkEvenOrOdd(ctx,5)
-	fmt.Println("Result with context.TODO() :",result)
+	ctx:= context.Background();
+	ctx, cancelFx:=context.WithCancel(ctx)
+	// defer cancelFx() ❌
 
-	ctx = context.Background()
+	go func(){
+		time.Sleep(2 * time.Second) // simulating heavy-task (time consuming op.)
+		cancelFx() // manually/only after tast completion
+		}()
 
-	ctx,cancel:= context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
+	ctx = context.WithValue(ctx, "reqID", "abcd1234")
 
-	// once again
-	result = checkEvenOrOdd(ctx, 10)
-	fmt.Println("Result with timeout context:",result)
-	 defer cancel()
+	go doWork(ctx)
 
-	
+	time.Sleep(3 * time.Second)
 
-	// now, sleep..
-	time.Sleep(2*time.Second)
-	result = checkEvenOrOdd(ctx, 15)
-	fmt.Println("Result with after sleep/timeout:",result)
+	requestId:= ctx.Value("reqID")
 
-	//O/P:
-	// $ go run .
-	// Result with context.TODO() : 5 is odd ☑️
-	// Result with timeout context: 10 is even ✅
-	// Result with after sleep/timeout: Operation cancelled!
-	
+	if requestId!=nil{
+		fmt.Println("Request ID:",requestId)
+	}else{
+		fmt.Println("No request ID found!")
+	}
 
+	logWithCtxt(ctx, "This a test logger message ☑️")
 }
+
+// create ctxt with value: ctx.withValue()
+// extracrting the value: ctx.Value()
+
+func logWithCtxt(ctx context.Context, message string){
+reqIdVal:=ctx.Value("reqID")
+log.Printf("ReqID: %v - %v",reqIdVal,message)
+}
+
+//OP-
+//$ go run .
+// Working.. ✅
+// Working.. ✅
+// Working.. ✅
+// Working.. ✅
+// 🔴 Work cancelled: context canceled
+// Request ID: abcd1234
+// 2025/10/08 05:25:28 ReqID: abcd1234 - This a test logger message ☑️ ....
