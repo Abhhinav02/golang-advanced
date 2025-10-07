@@ -3,19 +3,51 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
-// context - instance of a struct / obj.
+// context.TODO() example
+func checkEvenOrOdd(ctx context.Context, num int )string{
+	select {
+	case <-ctx.Done():
+		return "Operation cancelled!"
+	default:
+		if num%2==0{
+			return  fmt.Sprintf("%d is even ✅",num)
+		} else{
+			return  fmt.Sprintf("%d is odd ☑️",num)
+		}	
+	}
+	
+}
+
 func main() {
-	todoCtxt := context.TODO()
-	bgCtxt := context.Background()
+	ctx:= context.TODO()
+	result:= checkEvenOrOdd(ctx,5)
+	fmt.Println("Result with context.TODO() :",result)
 
-	ctxt:= context.WithValue(todoCtxt, "name","Skyy")
-	ctxtBg:= context.WithValue(bgCtxt, "city","Kolkata")
+	ctx = context.Background()
 
-	fmt.Println(ctxt)
-	fmt.Println(ctxt.Value("name"))
+	ctx,cancel:= context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
 
-	fmt.Println(ctxtBg)
-	fmt.Println(ctxtBg.Value("city"))
+	// once again
+	result = checkEvenOrOdd(ctx, 10)
+	fmt.Println("Result with timeout context:",result)
+	 defer cancel()
+
+	
+
+	// now, sleep..
+	time.Sleep(2*time.Second)
+	result = checkEvenOrOdd(ctx, 15)
+	fmt.Println("Result with after sleep/timeout:",result)
+
+	//O/P:
+	// $ go run .
+	// Result with context.TODO() : 5 is odd ☑️
+	// Result with timeout context: 10 is even ✅
+	// Result with after sleep/timeout: Operation cancelled!
+	
+
 }
