@@ -5,22 +5,20 @@ import (
 	"time"
 )
 
-// Scheduling delayed operations.
 func main() {
-	timer:=time.NewTimer(2*time.Second) // non-blocking timer
-	go func() {
-		<- timer.C
-		fmt.Println("✅ Delayed Op. executed ⌛")
-	}()
+	timer1 := time.NewTimer(1 * time.Second)
+	timer2 := time.NewTimer(2 * time.Second)
 
-	fmt.Println("Waiting.. ")
-	time.Sleep(3*time.Second) // blocking timer
-	fmt.Println("End of the program.. ☑️")
-
-	// OP:
-	// 	$ go run .
-	// Waiting.. 
-	// ✅ Delayed Op. executed ⌛
-	// End of the program.. ☑️
-
+	for range 2 {
+		select {
+		case <-timer1.C:
+			fmt.Println("Timer 1 expired!")
+		case <-timer2.C:
+			fmt.Println("Timer 2 expired!")
+		}
+	}
+	// O/P:
+	// $ go run .
+	// Timer 1 expired!
+	// Timer 2 expired!
 }
