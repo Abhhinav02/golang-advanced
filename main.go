@@ -5,33 +5,34 @@ import (
 	"time"
 )
 
-func periodicTask(){
-	fmt.Println("⌛ Performing periodic task at:",time.Now())
-}
+// tickers⏱️ + timers⌛
+// Scheduling logging📝
+// Polling for updates⚙️
+// Handling ticker-stops gracefully🪶
 
 func main() {
-	// Periodic Task exec()
+
 	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop() // Turn off ticker
+	stop:= time.After(5*time.Second)
+	defer ticker.Stop()
 
 	for{
 	select{
-	case <-ticker.C:
-		periodicTask()
+	case tick:= <-ticker.C:
+		fmt.Println("⌚ Tick at:",tick)
+	case <- stop:
+		fmt.Println("Stopping ticker.. ☑️")	
+		return
+		}
 	}
-	}
-
 	
-
 // O.p
 // $ go run .
-// 	⌛ Performing periodic task at: 2025-10-08 16:28:24.8883307 +0530 IST m=+6.001331601
-// ⌛ Performing periodic task at: 2025-10-08 16:28:25.8885089 +0530 IST m=+7.001509801
-// ⌛ Performing periodic task at: 2025-10-08 16:28:26.8879589 +0530 IST m=+8.000959801
-// ⌛ Performing periodic task at: 2025-10-08 16:28:27.8880838 +0530 IST m=+9.001084701
-// ⌛ Performing periodic task at: 2025-10-08 16:28:28.8878862 +0530 IST m=+10.000887101
-// ⌛ Performing periodic task at: 2025-10-08 16:28:29.8882013 +0530 IST m=+11.001202201
-// .... so on...
-	
+// ⌚ Tick at: 2025-10-08 16:44:58.8357751 +0530 IST m=+1.000557801
+// ⌚ Tick at: 2025-10-08 16:44:59.8357751 +0530 IST m=+2.000557801
+// ⌚ Tick at: 2025-10-08 16:45:00.8357751 +0530 IST m=+3.000557801
+// ⌚ Tick at: 2025-10-08 16:45:01.8357751 +0530 IST m=+4.000557801
+// ⌚ Tick at: 2025-10-08 16:45:02.8357751 +0530 IST m=+5.000557801
+// Stopping ticker.. ☑️
 
 }
