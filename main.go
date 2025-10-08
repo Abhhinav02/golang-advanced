@@ -6,19 +6,21 @@ import (
 )
 
 func main() {
-	timer1 := time.NewTimer(1 * time.Second)
-	timer2 := time.NewTimer(2 * time.Second)
+	ticker := time.NewTicker(time.Second)
 
-	for range 2 {
-		select {
-		case <-timer1.C:
-			fmt.Println("Timer 1 expired!")
-		case <-timer2.C:
-			fmt.Println("Timer 2 expired!")
-		}
+	i:=0;
+	for range ticker.C{
+		i++
+		fmt.Println(i)
 	}
-	// O/P:
+
+	// O.p
 	// $ go run .
-	// Timer 1 expired!
-	// Timer 2 expired!
+	// 1
+	// 2
+	// 3
+	// 4
+	// 5
+	// ... So on...
+
 }
