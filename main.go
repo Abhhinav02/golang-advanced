@@ -5,37 +5,22 @@ import (
 	"time"
 )
 
-// time.After() - After waits for the duration to elapse and then sends the current time on the returned channel.
+// Scheduling delayed operations.
 func main() {
-	timeOut:=time.After(3*time.Second)
-	done:= make(chan bool)
-
-	go func ()  {
-		longRunningOp()
-		done <-true
+	timer:=time.NewTimer(2*time.Second) // non-blocking timer
+	go func() {
+		<- timer.C
+		fmt.Println("✅ Delayed Op. executed ⌛")
 	}()
 
-	select{
-	case <-timeOut:
-		fmt.Println("Operation timed out!.. 🔴")
-	case <-done:
-		fmt.Println("✅ Operation completed/done!")	
-	}
+	fmt.Println("Waiting.. ")
+	time.Sleep(3*time.Second) // blocking timer
+	fmt.Println("End of the program.. ☑️")
 
 	// OP:
-	// $ go run .
-	// 0
-	// 1
-	// 2
-	// Operation timed out!.. 🔴
-	
+	// 	$ go run .
+	// Waiting.. 
+	// ✅ Delayed Op. executed ⌛
+	// End of the program.. ☑️
 
-}
-
-// simulating a resource-heavy/time-consuming func()
-func longRunningOp(){
-	for i:=range 20{
-       fmt.Println(i)
-	   time.Sleep(time.Second) // sleep after every rep.
-	}
 }
