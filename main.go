@@ -5,40 +5,58 @@ import (
 	"time"
 )
 
-// worker-pool : Design pattern to manage a group of workers (goroutines)
-// used for resource-management
-
-func worker(id int, tasks<-chan int, results chan<- int){
-	for task := range tasks{
-		fmt.Printf("Worker %d processing task %d\n",id,task)
-		// Simulate work/ops.
-		time.Sleep(time.Second)
-		results <-task*2
-	}
+// real-world app. example
+type ticketRequest struct{
+	personId int
+	numOfTickets int
+	cost int
 }
 
+// simulate processing of ticketRequests by creating workers
+func ticketProcessor(requests <-chan ticketRequest, results chan<-int){
+	for req := range requests{
+		fmt.Printf("Processing %d ticket(s) of personId %d with total cost of %d\n", req.numOfTickets, req.personId, req.cost)
+
+		// simulate ticket-processing time/delay
+		time.Sleep(time.Second)
+		results <- req.personId
+
+	}
+}
 
 func main() {
-	numOfWorkers := 3
-	numOfJobs:= 10
-	tasks:= make(chan int,numOfJobs)
-	results:= make(chan int,numOfJobs)
+	numOfReqs := 5
+	price:=5
+	ticketRequests:= make(chan ticketRequest, numOfReqs)
+	ticketResults:= make(chan int)
 
-	// Create workers
-	for i:=range numOfWorkers{
-		go worker(i,tasks,results)
+	// Create workers/ticket-processor
+	for range 3{
+		go ticketProcessor(ticketRequests,ticketResults)
 	}
 
-	// Send values to the tasks channel
-	for i:=range numOfJobs{
-		tasks<-i
+	// Send ticket-requests
+	for i:= range numOfReqs{
+		ticketRequests <-ticketRequest{personId: i+1, numOfTickets:(i+1)*2, cost:(i+1)*price}
 	}
 
-	close(tasks)
+	close(ticketRequests)
 
-	// Collect the results
-	for range numOfJobs{
-		result:=<-results
-		fmt.Println("Result:",result)
+	for range numOfReqs{
+		fmt.Printf("\n🟢Ticket for personId %d processed successfully",<-ticketResults)
 	}
+	
 }
+// O/P
+// $ go run .
+// Processing 2 ticket(s) of personId 1 with total cost of 5
+// Processing 4 ticket(s) of personId 2 with total cost of 10
+// Processing 6 ticket(s) of personId 3 with total cost of 15
+// Processing 8 ticket(s) of personId 4 with total cost of 20
+
+// 🟢Ticket for personId 3 processed successfully
+// 🟢Ticket for personId 1 processed successfully
+// 🟢Ticket for personId 2 processed successfullyProcessing 10 ticket(s) of personId 5 with total cost of 25
+
+// 🟢Ticket for personId 4 processed successfully
+// 🟢Ticket for personId 5 processed successfully
