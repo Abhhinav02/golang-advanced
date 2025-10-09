@@ -4095,5 +4095,3 @@ They’re **complementary tools**:
    * `Wait()` before closing shared channels or ending main.
 
 ---
-
-

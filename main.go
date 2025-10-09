@@ -6,64 +6,49 @@ import (
 	"time"
 )
 
-// 💡 Another example with channels
+// Real-World scenario simulation 🚛
 
-func worker(id int, tasks<- chan int,results chan<- int,wg *sync.WaitGroup){
-	defer wg.Done()
-	fmt.Printf("🟠 Worker %d starting\n",id)
-	time.Sleep(2*time.Second)
-	for task:=range tasks{
-	results<-task*2
-	}
-	
-	fmt.Printf("🟤 Worker %d finished!\n",id)
+type Worker struct{
+	ID int
+	Task string
+}
+
+// PerformTask - worker simulation
+func (w *Worker) PerformTask(wg *sync.WaitGroup){
+ defer wg.Done()
+ fmt.Printf("🚧 Worker %d started %s ...\n",w.ID,w.Task)
+ time.Sleep(2*time.Second) // time taken to complete task
+ fmt.Printf("✅ Worker %d finished %s\n",w.ID,w.Task)
 }
 
 func main() {
-	// create worker group
+	// create waitgroup
 	var wg sync.WaitGroup
-	numOfWorkers:= 3
-	numOfJobs:= 5
-	results:=make(chan int, numOfJobs)
-	tasks:= make(chan int, numOfJobs)
 
-	wg.Add(numOfWorkers)
+	// define tasks to be performed by workers
+	tasks:= []string{"Digging ⛏️","Laying bricks 🧱", "Painting 🖌️"} 
 
-	for i:= range numOfWorkers{
-		go worker(i+1,tasks,results,&wg)
+	for i,task := range tasks{
+		worker := Worker{ID:i+1, Task: task}
+		wg.Add(1) // can add in a loop too
+		go worker.PerformTask(&wg)
 	}
 
+	// wait for all workers to finish
+	wg.Wait()
 
-	for i:= range numOfJobs{
-		tasks <- i+1
-	}
-
-	close(tasks)
-
-	go func() {
-		wg.Wait() // Non blocking - We want to receive the vals in realtime
-		close(results)
-
-	}()
-
-	// print the results
-	for result:=range results{
-		fmt.Println("✅ Result:",result)
-	}
-
-	fmt.Println("⭐ All workers finished ⭐")
+	// Construction is finished
+	fmt.Println("Construction completed.. ☑️")
 
 
-	// Output:
+	// 💻Output:
 	// $ go run .
-	// 🟡 Worker 0 starting
-	// 🟡 Worker 2 starting
-	// 🟡 Worker 1 starting
-	// 🟣 Worker 1 finished!
-	// 🟣 Worker 0 finished!
-	// 🟣 Worker 2 finished!
-	// ✅ Result: 2
-	// ✅ Result: 0
-	// ✅ Result: 4
-
+	// 🚧 Worker 3 started Painting 🖌️ ...
+	// 🚧 Worker 1 started Digging ⛏️ ...
+	// 🚧 Worker 2 started Laying bricks 🧱 ...
+	// ✅ Worker 1 finished Digging ⛏️
+	// ✅ Worker 2 finished Laying bricks 🧱
+	// ✅ Worker 3 finished Painting 🖌️
+	// Construction completed.. ☑️
+	
 }
