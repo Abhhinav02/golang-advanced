@@ -3,39 +3,48 @@ package main
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
-//💡mutexes - how do they understand which values to protect?
+// Atomic counter - atomic ops.
+// Cruicial for safely handling shared data in concurrent programming.
+// More efficeint than mutexes.
+
+type AtomicCounter struct {
+	count int64
+}
+
+func (ac *AtomicCounter) increment() {
+	atomic.AddInt64(&ac.count, 1)
+}
+
+func (ac *AtomicCounter) getVal() int64{
+	return atomic.LoadInt64(&ac.count)
+}
+
+
 
 func main() {
-
-	var counter int
 	var wg sync.WaitGroup
+	numOfGoroutines:=10
 
-	var mu sync.Mutex
-
-	numOfGoroutines:=5
-	wg.Add(numOfGoroutines)
-
-	increment:= func ()  {
-		// can be used inside loops too
-		defer wg.Done()
-		for range 1000{
-			mu.Lock()
-			counter++
-			mu.Unlock()
-		}
-	}
+	counter:= &AtomicCounter{}
+	// value:=0 // ❌ unreliable
 
 	for range numOfGoroutines{
-		go increment()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range 1000{
+				counter.increment()
+				// value++ // ❌ unreliable
+			}
+		}()
 	}
 
 	wg.Wait()
-	fmt.Printf("✅ Final counter val: %d\n",counter)
-	
-	// O.P- 
-	// $ go run .
-	// ✅ Final counter val: 5000
-	
+	fmt.Printf("✅ Final value: %d\n",counter.getVal())
+	// fmt.Printf("✅ Final value: %d\n",value) // ❌ unreliable result
+
+	//O.P - ✅ Final value: 10000
 }
