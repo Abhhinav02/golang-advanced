@@ -8,7 +8,7 @@ import (
 
 // Atomic counter - atomic ops.
 // Cruicial for safely handling shared data in concurrent programming.
-// More efficeint than mutexes.
+// More efficeint than mutexes. But use them for simple ops/counting/tracking... For complex ones, use 'mutexes'.
 
 type AtomicCounter struct {
 	count int64
