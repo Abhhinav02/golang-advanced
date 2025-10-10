@@ -2,49 +2,76 @@ package main
 
 import (
 	"fmt"
-	"sync"
-	"sync/atomic"
+	"time"
 )
 
-// Atomic counter - atomic ops.
-// Cruicial for safely handling shared data in concurrent programming.
-// More efficeint than mutexes. But use them for simple ops/counting/tracking... For complex ones, use 'mutexes'.
+// "Token Bucket Algorithm" implementation ⚡
+// Why struct{}{} ? - No memory-overhead with an empty struct{} (0 bytes) 💡
 
-type AtomicCounter struct {
-	count int64
+type RateLimiter struct {
+	tokens     chan struct{}
+	refillTime time.Duration
 }
 
-func (ac *AtomicCounter) increment() {
-	atomic.AddInt64(&ac.count, 1)
+ func NewRateLimiter(rateLimit int, refillTime time.Duration) *RateLimiter{
+	rl:= &RateLimiter{
+	tokens: make(chan struct{}, rateLimit),
+	refillTime: refillTime,
 }
-
-func (ac *AtomicCounter) getVal() int64{
-	return atomic.LoadInt64(&ac.count)
+	for range rateLimit{
+	rl.tokens <- struct{}{}
 }
+	go rl.startRefill()
+	return  rl
+ }
 
+ func (rl *RateLimiter) startRefill(){
+	ticker:= time.NewTicker(rl.refillTime)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			select {
+			case rl.tokens <-struct{}{}:
+			default:
+			}
+		}
+	}
+} 
 
+func (rl *RateLimiter) allow() bool{
+	select {
+	case <-rl.tokens:
+		return true
+	default:
+		return false	
+	}
+}
 
 func main() {
-	var wg sync.WaitGroup
-	numOfGoroutines:=10
+	rateLimiter:= NewRateLimiter(5,time.Second) // 5 requests
 
-	counter:= &AtomicCounter{}
-	// value:=0 // ❌ unreliable
-
-	for range numOfGoroutines{
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for range 1000{
-				counter.increment()
-				// value++ // ❌ unreliable
-			}
-		}()
+	// Let's send 10 requests
+	for range 10{
+		if rateLimiter.allow(){
+			fmt.Println("Request Allowed ✅")
+		}else{
+			fmt.Println("Request denied ❌")
+		}
+		time.Sleep(200 * time.Millisecond) // some delay
 	}
 
-	wg.Wait()
-	fmt.Printf("✅ Final value: %d\n",counter.getVal())
-	// fmt.Printf("✅ Final value: %d\n",value) // ❌ unreliable result
-
-	//O.P - ✅ Final value: 10000
 }
+
+// OUTPUT:
+// $ go run .
+// Request Allowed ✅
+// Request Allowed ✅
+// Request Allowed ✅
+// Request Allowed ✅
+// Request Allowed ✅
+// Request Allowed ✅
+// Request denied ❌
+// Request denied ❌
+// Request denied ❌
+// Request denied ❌
