@@ -4095,3 +4095,251 @@ They’re **complementary tools**:
    * `Wait()` before closing shared channels or ending main.
 
 ---
+
+Nice — let’s unpack Go **mutexes** properly. We’ll cover what they are, how to use them safely and efficiently, why they behave the way they do, common pitfalls, and some advanced patterns and tooling to debug contention. We’ll sprinkle short, runnable examples so we can see the ideas in code.
+
+---
+
+# Quick summary (TL;DR)
+
+* A `sync.Mutex` is a mutual-exclusion lock: only one goroutine can hold it at a time.
+* The zero value is ready to use (no init needed). ([Go Packages][1])
+* A `Mutex` must **not** be copied after first use (copying leads to subtle bugs). ([Go Packages][1])
+* `Mutex` is **not reentrant** — calling `Lock()` twice on the same `Mutex` (from the same goroutine) deadlocks.
+* Go’s `Mutex` doesn’t track which goroutine holds it; one goroutine may `Lock` and another may `Unlock` (allowed by the runtime), but that is usually poor style unless intentionally coordinated. ([Go Packages][1])
+
+---
+
+# 1) Basic usage — correct and incorrect patterns
+
+Simple counter protected by a `Mutex`:
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+type Counter struct {
+	mu sync.Mutex
+	n  int
+}
+
+func (c *Counter) Inc() {
+	c.mu.Lock()
+	c.n++
+	c.mu.Unlock()
+}
+
+func (c *Counter) Value() int {
+	c.mu.Lock()
+	v := c.n
+	c.mu.Unlock()
+	return v
+}
+
+func main() {
+	var c Counter
+	c.Inc()
+	fmt.Println(c.Value()) // 1
+}
+```
+
+Idiomatic: prefer `defer` to ensure unlock on every path:
+
+```go
+c.mu.Lock()
+defer c.mu.Unlock()
+c.n++
+```
+
+**What happens if we don’t use a mutex?** Race conditions — the race detector (`go run -race` / `go test -race`) will find unsynchronized concurrent access.
+
+---
+
+# 2) Zero-value, copying, and ownership gotchas
+
+* **Zero value is unlocked and usable**: `var mu sync.Mutex` is ready to use. ([Go Packages][1])
+* **Don’t copy a `Mutex` after use**: passing a struct containing a `Mutex` by value (or assigning it) after it’s been used can lead to two different `Mutex` objects guarding the same data — broken invariants and deadlocks. The docs explicitly say not to copy mutexes. ([Go Packages][1])
+
+Bad example (copying):
+
+```go
+type S struct {
+    mu sync.Mutex
+    v  int
+}
+
+func wrong() {
+    a := S{}
+    a.mu.Lock()
+    b := a   // copy of S: also contains a copy of mu — BAD
+    // now a and b have separate mutex values guarding the same concept
+}
+```
+
+Rule of thumb: use pointer receivers for types that embed a `sync.Mutex`, and don’t put mutexes in values you intend to copy.
+
+---
+
+# 3) Ownership, unlocking in other goroutines, and panics
+
+* The Go runtime **does not** associate a mutex with a particular goroutine; unlocking from a different goroutine is *allowed* by the runtime (the docs state this). But unlocking from a goroutine that didn’t call `Lock` is often confusing and makes reasoning hard — avoid it unless it models a clear handoff. ([Go Packages][1])
+* If you call `Unlock()` when the mutex is not locked, it’s a runtime error (panic). So always ensure proper Lock/Unlock pairing. ([Go Packages][1])
+* If a function can panic while holding a lock, use `defer` + `recover` where appropriate to ensure the lock is released, or design so the lock is always released in a deferred call.
+
+---
+
+# 4) `RWMutex` for read-mostly workloads
+
+Use `sync.RWMutex` when many goroutines read and few write:
+
+```go
+var rw sync.RWMutex
+// Readers:
+rw.RLock()
+defer rw.RUnlock()
+// Writers:
+rw.Lock()
+defer rw.Unlock()
+```
+
+Notes:
+
+* `RLock` allows multiple concurrent readers.
+* A writer (`Lock`) blocks new readers and waits for existing readers to finish.
+* Abuse of `RWMutex` (e.g., frequent upgrades from reader to writer) can produce complexity and sometimes worse performance than a plain `Mutex`.
+
+---
+
+# 5) `TryLock` (non-blocking), added to stdlib
+
+Go added `TryLock()` (and `TryRLock`/`TryLock` on `RWMutex`) in Go 1.18. It attempts to acquire the lock and returns immediately with a boolean success flag. Use it sparingly — often `TryLock` signals design smell. ([Go Packages][1])
+
+Example:
+
+```go
+if mu.TryLock() {
+    defer mu.Unlock()
+    // do quick task
+} else {
+    // fallback path
+}
+```
+
+---
+
+# 6) What’s happening under the hood (internals) — fast path, spinning, parking, starvation
+
+Go's mutex implementation is optimized for the uncontended case: the fast path tries an atomic operation (CAS). If there’s contention, the runtime employs a hybrid strategy of *spinning* for a short time (on multicore CPUs) and then *parking* the goroutine (putting it to sleep) if the lock remains unavailable. The runtime also has a **starvation mode** to avoid starving waiters: after a certain threshold, the mutex switches to a handoff mode to serve waiting goroutines fairly. These heuristics give good real-world performance but are implementation details (and tuned across Go versions). ([go.dev][2])
+
+Implication: uncontended `Lock()` is very cheap; contended locks are orders of magnitude more expensive due to scheduler involvement.
+
+---
+
+# 7) Performance and design guidance
+
+* **Keep critical sections short.** Do the minimum work under a lock. Avoid I/O, blocking syscalls, network calls, or expensive computation while holding a lock.
+* **Lock granularity:** Prefer fine-grained locks only when contention demands it. Over-sharding increases complexity.
+* **Use atomics for hot counters.** If we only need a single integer increment/ read, `sync/atomic` (e.g., `atomic.AddInt64`) is faster and avoids scheduler overhead.
+* **Consider lock striping/sharding** for concurrent maps: split into N shards each with its own mutex to reduce contention.
+* **Avoid holding multiple locks at once** where possible. If you must, define a strict global lock order and document it to prevent deadlocks.
+* **Prefer `defer mu.Unlock()`** for correctness (but be aware of slightly higher allocation/latency in extremely tight loops — only optimize after measurement).
+
+---
+
+# 8) Concurrency primitives related to Mutexes
+
+* `sync.Cond` — condition variable that uses a `Locker` (often a `*sync.Mutex`) and supports `Wait()`, `Signal()`, `Broadcast()`. Always call `Wait()` inside a loop that checks the condition (spurious wakeups).
+* `sync.Once` — one-time init (uses internal sync primitives).
+* `sync.WaitGroup` — wait for a group of goroutines (not a lock but often used alongside mutexes).
+* `sync.Map` — concurrent map for certain workloads (lock-free for most ops, but with semantics that differ from plain maps).
+
+Example `Cond` (producer/consumer):
+
+```go
+var mu sync.Mutex
+cond := sync.NewCond(&mu)
+queue := []int{}
+
+func producer() {
+    mu.Lock()
+    queue = append(queue, 1)
+    cond.Signal()
+    mu.Unlock()
+}
+
+func consumer() {
+    mu.Lock()
+    for len(queue) == 0 {
+        cond.Wait()
+    }
+    // consume
+    queue = queue[1:]
+    mu.Unlock()
+}
+```
+
+---
+
+# 9) Debugging contention and deadlocks
+
+* Use the race detector for data races: `go run -race` or `go test -race`.
+* Use the mutex/block profiles (`pprof`) to find lock hotspots and contention (`/debug/pprof/mutex`). You can configure sampling with `runtime.SetMutexProfileFraction`. The mutex profile attributes contention to the end of the critical section (usually shows up at `Unlock`). ([Go Packages][3])
+* Deadlocks: check goroutine dumps (`pprof` or `panic/goroutine` traces); look for goroutines stuck on `Lock()`/`channel` operations and examine lock ordering.
+
+---
+
+# 10) Common mistakes checklist
+
+* ❌ Copying a `sync.Mutex` after use. (Don’t do it.) ([Go Packages][1])
+* ❌ Holding locks across system calls / network I/O / long computations.
+* ❌ Assuming `Unlock()` must be called by the same goroutine that called `Lock()` — runtime allows it, but it’s usually poor design. ([Go Packages][1])
+* ❌ Not using `defer` for unlocks where panics may occur.
+* ❌ Using `RWMutex` incorrectly (e.g., frequent reader→writer upgrades) — measure before adopting.
+
+---
+
+# 11) Short advanced patterns & examples
+
+**Sharded counters (reduce contention):**
+
+```go
+type ShardedCounter struct {
+    shards []struct {
+        mu sync.Mutex
+        v  int64
+    }
+}
+
+func (s *ShardedCounter) Inc(key int) {
+    sh := &s.shards[key%len(s.shards)]
+    sh.mu.Lock()
+    sh.v++
+    sh.mu.Unlock()
+}
+```
+
+**Atomic counter (fast hot path):**
+
+```go
+import "sync/atomic"
+
+var cnt int64
+atomic.AddInt64(&cnt, 1)
+v := atomic.LoadInt64(&cnt)
+```
+
+---
+
+# Wrap-up — practical advice
+
+* Use `sync.Mutex` for protecting compound invariants (multiple fields that must stay in sync).
+* Use `sync/atomic` for single-word hot counters.
+* Prefer `defer mu.Unlock()` for correctness.
+* Measure: only optimize locks after you’ve identified contention (use `pprof`’s mutex profile). ([Go Packages][3])
+* Read the `sync` package docs and (optionally) the `sync` runtime source if you need to understand the precise scheduler/parking behavior. ([Go Packages][1])
+
+---

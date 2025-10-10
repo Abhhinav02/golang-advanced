@@ -3,52 +3,48 @@ package main
 import (
 	"fmt"
 	"sync"
-	"time"
 )
 
-// Real-World scenario simulation 🚛
+/*
+💡mutexes - mitual exclution, sync. primitive which prevents multiple goroutines from simultaneously accessing shared resources or exeuting critical sections of the code. Ensures that only 1 goroutine can hold the 'mutex' at a time, thus avaoiding race-conditions and data-corruption. 💻
+*/
 
-type Worker struct{
-	ID int
-	Task string
+type Counter struct{
+	mu sync.Mutex
+	val int
 }
 
-// PerformTask - worker simulation
-func (w *Worker) PerformTask(wg *sync.WaitGroup){
- defer wg.Done()
- fmt.Printf("🚧 Worker %d started %s ...\n",w.ID,w.Task)
- time.Sleep(2*time.Second) // time taken to complete task
- fmt.Printf("✅ Worker %d finished %s\n",w.ID,w.Task)
+func (c *Counter)increment(){
+	c.mu.Lock()
+	c.val++
+	defer c.mu.Unlock()
+}
+
+func (c *Counter) getVal()int{
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.val
 }
 
 func main() {
-	// create waitgroup
+	// waitgroups for multiple goroutines
 	var wg sync.WaitGroup
+	counter:= &Counter{}
+	numOfGoroutines := 10
 
-	// define tasks to be performed by workers
-	tasks:= []string{"Digging ⛏️","Laying bricks 🧱", "Painting 🖌️"} 
-
-	for i,task := range tasks{
-		worker := Worker{ID:i+1, Task: task}
-		wg.Add(1) // can add in a loop too
-		go worker.PerformTask(&wg)
+	for range numOfGoroutines{
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range 100{
+				counter.increment()
+			}
+		}()
 	}
-
-	// wait for all workers to finish
 	wg.Wait()
+	fmt.Printf("✅ Final counter val: %d\n",counter.getVal()) // ⚠️unreliable output without 'mutex'
 
-	// Construction is finished
-	fmt.Println("Construction completed.. ☑️")
-
-
-	// 💻Output:
+	// O.P- 
 	// $ go run .
-	// 🚧 Worker 3 started Painting 🖌️ ...
-	// 🚧 Worker 1 started Digging ⛏️ ...
-	// 🚧 Worker 2 started Laying bricks 🧱 ...
-	// ✅ Worker 1 finished Digging ⛏️
-	// ✅ Worker 2 finished Laying bricks 🧱
-	// ✅ Worker 3 finished Painting 🖌️
-	// Construction completed.. ☑️
-	
+	// ✅ Final counter val: 1000
 }
