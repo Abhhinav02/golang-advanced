@@ -5513,3 +5513,190 @@ When empty → wait/refuse
 * Perfect for **API rate limits**, **job scheduling**, and **goroutine throttling**.
 
 ---
+
+Let’s break down the **Fixed Window Algorithm (Counter-based rate limiting)** in Go in the same structured format as before.
+
+---
+
+## 🧩 **Overview — Fixed Window Algorithm**
+
+The **Fixed Window Counter** algorithm is one of the **simplest rate-limiting techniques**.
+It limits how many requests are allowed in each **time window** (like every second, or minute).
+
+---
+
+### ⚙️ **Core Idea**
+
+* Divide time into **equal fixed intervals** (windows), e.g. every 1 second.
+* Maintain a **counter** for the current window.
+* Each incoming request increments the counter.
+* If the counter exceeds the limit → request denied ❌
+* When the window resets → counter resets to 0.
+
+---
+
+### ⏱️ **Timeline Example**
+
+Let’s say:
+
+* Limit = 5 requests / second
+* At time `0.0s – 1.0s` window → only 5 requests allowed
+* After `1.0s`, window resets → new counter starts
+
+| Time | Request # | Window | Counter | Allowed?       |
+| ---- | --------- | ------ | ------- | -------------- |
+| 0.1s | 1         | [0–1s) | 1       | ✅              |
+| 0.2s | 2         | [0–1s) | 2       | ✅              |
+| 0.6s | 5         | [0–1s) | 5       | ✅              |
+| 0.7s | 6         | [0–1s) | 6       | ❌              |
+| 1.1s | 7         | [1–2s) | 1       | ✅ (new window) |
+
+---
+
+## 💻 **Golang Implementation**
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+// Fixed Window Rate Limiter ⏳
+// Allows N requests per fixed time window.
+
+type FixedWindowLimiter struct {
+	mu          sync.Mutex     // To safely access shared data
+	windowStart time.Time      // Start time of current window
+	requests    int            // Number of requests in current window
+	limit       int            // Max allowed requests per window
+	windowSize  time.Duration  // Duration of each window
+}
+
+// Constructor
+func NewFixedWindowLimiter(limit int, windowSize time.Duration) *FixedWindowLimiter {
+	return &FixedWindowLimiter{
+		windowStart: time.Now(),
+		limit:       limit,
+		windowSize:  windowSize,
+	}
+}
+
+// Core logic
+func (l *FixedWindowLimiter) Allow() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	now := time.Now()
+
+	// If window expired -> reset
+	if now.Sub(l.windowStart) >= l.windowSize {
+		l.windowStart = now
+		l.requests = 0
+	}
+
+	// Check if within limit
+	if l.requests < l.limit {
+		l.requests++
+		return true
+	}
+	return false
+}
+
+func main() {
+	limiter := NewFixedWindowLimiter(5, time.Second) // 5 req per sec
+
+	for i := 1; i <= 10; i++ {
+		if limiter.Allow() {
+			fmt.Println("✅ Request allowed", i)
+		} else {
+			fmt.Println("❌ Request denied", i)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+```
+
+---
+
+### 🧠 **Code Explanation**
+
+| Section         | Description                                          |
+| --------------- | ---------------------------------------------------- |
+| `windowStart`   | Tracks when the current window started               |
+| `requests`      | Counts requests in this window                       |
+| `limit`         | Max allowed requests per window                      |
+| `windowSize`    | Duration (e.g. 1 second)                             |
+| `mu sync.Mutex` | Prevents race conditions between concurrent requests |
+| `Allow()`       | Main function — decides allow/deny                   |
+
+---
+
+### ⚙️ **Execution Walkthrough**
+
+1️⃣ At program start:
+
+* `windowStart = now`
+* `requests = 0`
+
+2️⃣ Each time `Allow()` is called:
+
+* Checks if `time.Now()` exceeds `windowStart + windowSize`
+
+  * If **yes**, reset counter → new window
+* If counter < limit → increment and allow
+* Else → deny
+
+---
+
+### 🧭 **Expected Output**
+
+```
+✅ Request allowed 1
+✅ Request allowed 2
+✅ Request allowed 3
+✅ Request allowed 4
+✅ Request allowed 5
+❌ Request denied 6
+✅ Request allowed 7
+✅ Request allowed 8
+✅ Request allowed 9
+✅ Request allowed 10
+```
+
+(After 5 requests, the limiter blocks until the window resets at 1 second.)
+
+---
+
+## 🧩 **Advantages**
+
+| ✅ Pros                   | ❌ Cons                                                      |
+| ------------------------ | ----------------------------------------------------------- |
+| Very simple to implement | Causes “burstiness” at window boundaries                    |
+| Low memory footprint     | Can allow *double bursts* at boundary (end/start of window) |
+| Easy to reason about     | Not smooth — abrupt reset behavior                          |
+
+---
+
+### ⚠️ Example of Burst Issue
+
+If a client makes 5 requests at the **end of one window (0.9s)** and 5 more at the **start of next (1.0s)** → total 10 requests in 0.1s.
+
+That’s why advanced systems (e.g., API Gateways, Cloudflare) prefer **Sliding Window** or **Token Bucket** for smoother control.
+
+---
+
+## 🧠 Summary
+
+| Concept            | Description                                  |
+| ------------------ | -------------------------------------------- |
+| **Algorithm type** | Fixed window counter                         |
+| **State**          | Single counter + window start time           |
+| **Best for**       | Simple, predictable, low-traffic rate limits |
+| **Pitfall**        | Bursts at window edges                       |
+| **Concurrency**    | Needs locking (`sync.Mutex`)                 |
+
+---
+
