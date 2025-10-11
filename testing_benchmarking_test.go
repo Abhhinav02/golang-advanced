@@ -1,36 +1,46 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 )
 
-//💡 benchmarking - used to measure the perfornance of the code. Especially, how long does it take to perform a function or program.
+// MULTIPLE BENHCMARK F(X)
 
-// we write benchmarking f(x) with names starting with 'benchmark'
-// off. docs - https://pkg.go.dev/testing
 func Add(a,b int)int{
 	return a+b
 }
 
-func TestAddSubtests(t *testing.T){
-	tests:= []struct{a,b,expected int}{
-		{2,3,5},
-		{0,0,0},
-		{-1,1,0},
+func BenchmarkSmallInput(b *testing.B){
+	// for range b.N{
+	// Loop returns true as long as the benchmark should continue running.
+	for b.Loop(){
+		Add(2,3)
 	}
+}
 
-	for _,test:=range tests{
-		t.Run(fmt.Sprintf("Add(%d,%d)", test.a, test.b), func(t *testing.T){
-			result:=Add(test.a, test.b)
-			if result!=test.expected{
-				t.Errorf("Result = %d; Expected = %d",result,test.expected)
-			}
-		})
+func BenchmarkMediumInput(b *testing.B){
+	// for range b.N{
+	// Loop returns true as long as the benchmark should continue running.
+	for b.Loop(){
+		Add(200,300)
 	}
+}
 
+func BenchmarkLargeInput(b *testing.B){
+	// for range b.N{
+	// Loop returns true as long as the benchmark should continue running.
+	for b.Loop(){
+		Add(2000,3000)
+	}
 }
 
 // O/P:
-// $ go test testing_benchmarking_test.go
-// ok      command-line-arguments  0.343s
+// $ go test -bench=. -benchmem  testing_benchmarking_test.go|grep 
+// -v 'cpu:'
+// goos: windows
+// goarch: amd64
+// BenchmarkSmallInput-8           864131830                1.358 ns/op           0 B/op          0 allocs/op
+// BenchmarkMediumInput-8          783273967                1.384 ns/op           0 B/op          0 allocs/op
+// BenchmarkLargeInput-8           801466148                1.352 ns/op           0 B/op          0 allocs/op
+// PASS
+// ok      command-line-arguments  3.740s
