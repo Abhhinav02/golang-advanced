@@ -2,52 +2,88 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"sort"
 )
 
-// stateful groutines - state is preserved between contexts
-// COUNTER example
+// SORTING
 
-type StatefulWorker struct{
-	count int
-	ch chan int
+type Person struct{
+	Name string
+	Age int
 }
 
-// Receivig value from ch.
-func(sw *StatefulWorker) Start(){
-	go func() {
-		// infinite loop
-		for {
-			select {
-			case value:= <-sw.ch:
-				sw.count+=value
-				fmt.Println("✅ Curr. count:",sw.count)
-				
-			}
-		}
-	}()
+type By func(p1,p2 *Person)bool
+
+type PersonSorter struct{
+	people []Person
+	by func(p1,p2 *Person) bool
 }
 
-// Sending value to ch.
-func(sw *StatefulWorker) Send(value int){
-	sw.ch <- value
+func (s *PersonSorter)Len()int{
+return len(s.people)
+}
+
+func (s *PersonSorter) Less(i,j int) bool{
+	return s.by(&s.people[i],&s.people[j])
+}
+
+func (s *PersonSorter) Swap (i,j int){
+	s.people[i], s.people[j] = s.people[j],s.people[i]
+}
+
+func (by By) Sort(people []Person){
+ps:= &PersonSorter{
+	people: people,
+	by: by,
+}
+sort.Sort(ps)
 }
 
 func main() {
-	stWorker:= &StatefulWorker{
-		ch: make(chan int),
-	}
-	stWorker.Start()
 
-	for i:=range 5{
-		stWorker.Send(i)
-		time.Sleep(500*time.Millisecond)
+	people:=[]Person{
+		{"Skyy",30},
+		{"Bob",25},
+		{"Anna",35},
+		{"Max",32},
 	}
+
+	age:= func (p1,p2 *Person)bool{
+		return p1.Age<p2.Age
+	}
+
+	By(age).Sort(people)
+
+	fmt.Println("Sorted by age:",people)
+
 }
 
-// O.P - 
-// ✅ Curr. count: 0
-// ✅ Curr. count: 1
-// ✅ Curr. count: 3
-// ✅ Curr. count: 6
-// ✅ Curr. count: 10
+/* ------------------------------------------------------------------
+*/
+
+// type ByAge []Person
+// type ByName []Person
+
+// func (ba ByAge) Len()int{
+// 	return len(ba)
+// }
+
+// func (ba ByName) LenByName()int{
+// 	return len(ba)
+// }
+
+
+// func (ba ByAge) Less(i,j int)bool{
+// 	return ba[i].Age<ba[j].Age
+// }
+
+// func (ba ByName) LessName(i,j int)bool{
+// 	return ba[i].Name<ba[j].Name
+// }
+// func (ba ByAge) Swap(i,j int){
+// 	ba[i], ba[j] = ba[j] , ba[i]
+// }
+
+// func (ba ByName) SwapName(i,j int){
+// 	ba[i], ba[j] = ba[j] , ba[i]
+// }

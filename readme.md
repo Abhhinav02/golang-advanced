@@ -6077,8 +6077,433 @@ Think of a **stateful goroutine** as a **little server**:
 
 ---
 
-Would you like me to visualize this concept (like a diagram showing goroutines communicating with a central stateful one)?
+Let’s dive into **sorting in Go (Golang)** in full detail, from **basics to advanced custom sorting**, and even what happens **under the hood**.
 
 ---
 
+## 🧠 1. What Is Sorting?
 
+**Sorting** means arranging data in a particular order — **ascending** or **descending** — based on some **comparison rule** (like `<`, `>`).
+
+Example:
+
+```go
+nums := []int{5, 2, 8, 3, 1}
+```
+
+Sorted ascending → `[1, 2, 3, 5, 8]`
+
+---
+
+## ⚙️ 2. The `sort` Package
+
+Go provides a built-in `sort` package in the standard library:
+
+```go
+import "sort"
+```
+
+It supports:
+
+* Built-in types (slices of `int`, `float64`, and `string`)
+* Custom sorting for structs or any other type (via interfaces)
+
+---
+
+## 🧩 3. Sorting Built-in Types
+
+### ✅ Sort integers
+
+```go
+package main
+
+import (
+	"fmt"
+	"sort"
+)
+
+func main() {
+	nums := []int{5, 3, 8, 1, 4}
+	sort.Ints(nums) // sorts in ascending order
+	fmt.Println(nums) // [1 3 4 5 8]
+
+	// Check if sorted
+	fmt.Println(sort.IntsAreSorted(nums)) // true
+}
+```
+
+### ✅ Sort strings
+
+```go
+words := []string{"banana", "apple", "cherry"}
+sort.Strings(words)
+fmt.Println(words) // [apple banana cherry]
+```
+
+### ✅ Sort float64
+
+```go
+prices := []float64{2.5, 0.99, 1.2}
+sort.Float64s(prices)
+fmt.Println(prices) // [0.99 1.2 2.5]
+```
+
+---
+
+## 🔁 4. Reverse Order
+
+We can reverse the sorting order using:
+
+```go
+sort.Sort(sort.Reverse(sort.IntSlice(nums)))
+fmt.Println(nums) // [8 5 4 3 1]
+```
+
+`sort.Reverse()` wraps a sorter and reverses its comparison logic.
+
+---
+
+## 🧱 5. How Sorting Works Internally
+
+Under the hood, Go uses **hybrid sorting algorithms**:
+
+* For small slices → **Insertion Sort** (O(n²) but fast for tiny arrays)
+* For larger slices → **QuickSort** (O(n log n) average case)
+* For partially sorted data → may switch to **HeapSort**
+
+In short:
+
+> Go’s `sort.Sort()` automatically picks the most efficient algorithm for the situation.
+
+---
+
+## 🧠 6. Custom Sorting (Structs or Complex Data)
+
+We can sort **any custom type** by implementing the `sort.Interface`.
+
+### `sort.Interface` requires:
+
+```go
+type Interface interface {
+    Len() int
+    Less(i, j int) bool
+    Swap(i, j int)
+}
+```
+
+---
+
+### 🧍 Example: Sorting Structs
+
+```go
+package main
+
+import (
+	"fmt"
+	"sort"
+)
+
+type Student struct {
+	Name string
+	Age  int
+}
+
+// Create a type that implements sort.Interface
+type ByAge []Student
+
+func (a ByAge) Len() int           { return len(a) }
+func (a ByAge) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByAge) Less(i, j int) bool { return a[i].Age < a[j].Age }
+
+func main() {
+	students := []Student{
+		{"Alice", 22},
+		{"Bob", 19},
+		{"Charlie", 25},
+	}
+
+	sort.Sort(ByAge(students)) // uses our custom comparator
+	fmt.Println(students)
+}
+```
+
+Output:
+
+```
+[{Bob 19} {Alice 22} {Charlie 25}]
+```
+
+---
+
+## ⚡ 7. Using `sort.Slice()` (Modern Shortcut)
+
+Since Go 1.8, there’s a much simpler way — **no interface needed!**
+
+```go
+students := []Student{
+	{"Alice", 22},
+	{"Bob", 19},
+	{"Charlie", 25},
+}
+
+sort.Slice(students, func(i, j int) bool {
+	return students[i].Age < students[j].Age
+})
+fmt.Println(students)
+```
+
+We can also sort by **multiple fields**:
+
+```go
+sort.Slice(students, func(i, j int) bool {
+	if students[i].Age == students[j].Age {
+		return students[i].Name < students[j].Name
+	}
+	return students[i].Age < students[j].Age
+})
+```
+
+---
+
+## 🧮 8. Sorting Stability
+
+A **stable sort** keeps the **relative order** of equal elements the same.
+
+* `sort.Sort()` → **Not guaranteed to be stable**
+* `sort.Stable()` → **Guaranteed stable**
+
+Example:
+
+```go
+sort.Stable(sorter)
+```
+
+Use it when you need consistent order for equal keys.
+
+---
+
+## 🧰 9. Common Helper Functions
+
+| Function                      | Purpose                      |
+| ----------------------------- | ---------------------------- |
+| `sort.Ints(slice)`            | Sort integers ascending      |
+| `sort.Strings(slice)`         | Sort strings ascending       |
+| `sort.Float64s(slice)`        | Sort floats ascending        |
+| `sort.Sort(interface)`        | Sort using custom rules      |
+| `sort.Slice(slice, lessFunc)` | Sort with inline comparator  |
+| `sort.Reverse(interface)`     | Reverse order                |
+| `sort.Stable(interface)`      | Stable sort                  |
+| `sort.Search()`               | Binary search on sorted data |
+
+---
+
+## 🔎 10. Searching in Sorted Data
+
+Go also provides binary search utilities.
+
+```go
+nums := []int{1, 3, 5, 7, 9}
+i := sort.SearchInts(nums, 7)
+fmt.Println(i) // 3 (index of 7)
+```
+
+---
+
+## 🧬 11. Under the Hood (CS-Level View)
+
+* The `sort.Sort()` function uses **introsort**, a hybrid algorithm combining:
+
+  * **Quicksort** (fast average performance)
+  * **Heapsort** (fallback to avoid worst-case)
+  * **Insertion sort** (for small slices)
+* The sorting algorithm avoids recursion overhead using iterative partitioning.
+* Comparisons are done via the `Less()` method — this is why performance depends on how efficient our comparison logic is.
+
+---
+
+## 🧩 12. Real-World Example
+
+### Sorting by Price in an E-commerce App
+
+```go
+type Product struct {
+	Name  string
+	Price float64
+}
+
+products := []Product{
+	{"Keyboard", 999.99},
+	{"Mouse", 499.99},
+	{"Monitor", 9999.99},
+}
+
+sort.Slice(products, func(i, j int) bool {
+	return products[i].Price < products[j].Price
+})
+
+fmt.Println(products)
+```
+
+---
+
+## 🏁 Summary
+
+| Concept       | Example                                        |
+| ------------- | ---------------------------------------------- |
+| Sort integers | `sort.Ints(nums)`                              |
+| Sort strings  | `sort.Strings(names)`                          |
+| Reverse order | `sort.Sort(sort.Reverse(sort.IntSlice(nums)))` |
+| Custom sort   | Implement `sort.Interface`                     |
+| Inline sort   | `sort.Slice()`                                 |
+| Stable sort   | `sort.Stable()`                                |
+| Binary search | `sort.SearchInts(slice, val)`                  |
+
+---
+
+Let’s explore **`sort.Sort()`, `sort.Slice()`, and `sort.Stable()`** **side-by-side**, using a practical example so we clearly see how they behave — especially with **duplicates** (where stability matters most).
+
+---
+
+## 🧪 Scenario
+
+We have a slice of `Employee` structs, where **multiple employees can have the same age**.
+We’ll sort them by age — and observe how **the order of same-age employees** changes (or doesn’t).
+
+---
+
+### 🧱 Setup Code
+
+```go
+package main
+
+import (
+	"fmt"
+	"sort"
+)
+
+type Employee struct {
+	Name string
+	Age  int
+}
+
+// For sort.Sort() — we need to implement sort.Interface
+type ByAge []Employee
+
+func (e ByAge) Len() int           { return len(e) }
+func (e ByAge) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
+func (e ByAge) Less(i, j int) bool { return e[i].Age < e[j].Age }
+
+func main() {
+	employees := []Employee{
+		{"Alice", 30},
+		{"Bob", 25},
+		{"Charlie", 30},
+		{"David", 25},
+		{"Eve", 28},
+	}
+
+	fmt.Println("Before sorting:")
+	for _, e := range employees {
+		fmt.Println(e)
+	}
+
+	// 1️⃣ Using sort.Sort (not stable)
+	emps1 := append([]Employee{}, employees...) // copy slice
+	sort.Sort(ByAge(emps1))
+	fmt.Println("\nAfter sort.Sort (unstable):")
+	for _, e := range emps1 {
+		fmt.Println(e)
+	}
+
+	// 2️⃣ Using sort.Slice (modern shorthand, also unstable)
+	emps2 := append([]Employee{}, employees...) // copy slice
+	sort.Slice(emps2, func(i, j int) bool {
+		return emps2[i].Age < emps2[j].Age
+	})
+	fmt.Println("\nAfter sort.Slice (unstable):")
+	for _, e := range emps2 {
+		fmt.Println(e)
+	}
+
+	// 3️⃣ Using sort.Stable (guaranteed stable)
+	emps3 := append([]Employee{}, employees...) // copy slice
+	sort.Stable(ByAge(emps3))
+	fmt.Println("\nAfter sort.Stable (stable):")
+	for _, e := range emps3 {
+		fmt.Println(e)
+	}
+}
+```
+
+---
+
+## 📊 Expected Output (Example)
+
+```
+Before sorting:
+{Alice 30}
+{Bob 25}
+{Charlie 30}
+{David 25}
+{Eve 28}
+
+After sort.Sort (unstable):
+{David 25}
+{Bob 25}
+{Eve 28}
+{Charlie 30}
+{Alice 30}
+
+After sort.Slice (unstable):
+{Bob 25}
+{David 25}
+{Eve 28}
+{Charlie 30}
+{Alice 30}
+
+After sort.Stable (stable):
+{Bob 25}
+{David 25}
+{Eve 28}
+{Alice 30}
+{Charlie 30}
+```
+
+---
+
+## 🔍 Explanation
+
+| Method          | Stability               | Interface Needed?                       | Notes                                  |
+| --------------- | ----------------------- | --------------------------------------- | -------------------------------------- |
+| `sort.Sort()`   | ❌ Not guaranteed stable | ✅ Yes (implement `Len`, `Swap`, `Less`) | Older but explicit                     |
+| `sort.Slice()`  | ❌ Not guaranteed stable | ❌ No                                    | Modern shorthand using lambda          |
+| `sort.Stable()` | ✅ Stable                | ✅ Yes                                   | Keeps original order of equal elements |
+
+---
+
+### ⚖️ What Is *Stability*?
+
+A **stable sort** means:
+
+> If two elements have the same key (like same age), they appear in the *same order* as before sorting.
+
+For example:
+
+| Before                   | After (Stable) | After (Unstable) |
+| ------------------------ | -------------- | ---------------- |
+| Alice (30), Charlie (30) | Alice, Charlie | Charlie, Alice   |
+
+That’s what we saw above — `sort.Stable()` preserves the initial ordering of duplicates.
+
+---
+
+## 🧠 When To Use What
+
+| Case                                                  | Best Choice                                  |
+| ----------------------------------------------------- | -------------------------------------------- |
+| Sorting small built-in slices (ints, strings, floats) | `sort.Ints`, `sort.Strings`, `sort.Float64s` |
+| Sorting structs quickly                               | `sort.Slice()`                               |
+| Need deterministic duplicate order                    | `sort.Stable()`                              |
+| Need explicit interface control                       | `sort.Sort()`                                |
+
+---
