@@ -2,48 +2,51 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+	"reflect"
 )
 
-// stop/cont.
+// methods( ) with 'reflect'
+
+type Greeter struct{}
+
+// Method with two parameters
+func (g Greeter) Greet(fname, lname string) string {
+	return "Hello " + fname + " " + lname
+}
 
 func main() {
-	pid:= os.Getpid()
-	fmt.Println("🔵 Process ID:",pid)
-	sigs:= make(chan os.Signal,1)
-	done:= make(chan bool, 1)
+	g := Greeter{}
+	t := reflect.TypeOf(g)
+	v := reflect.ValueOf(g)
 
-	// Notify channel on interrupt or terminate signals
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	fmt.Println("Type:", t)
 
-	go func() {
-		sig:= <-sigs
-		fmt.Println("We recievd signal:",sig)
-		done<-true
-	}()
-
-	go func() {
-
-		for {
-			select{
-			case <-done:
-				fmt.Println("Stopping work, due to signal.")
-				return
-			default:
-				fmt.Println("🟢 Working..")	
-				time.Sleep(time.Second)
-			}
-		}
-
-	}()
-	for {
-		time.Sleep(time.Second)
+	// ✅ Correct way: iterate through methods properly
+	for i := 0; i < t.NumMethod(); i++ {
+		method := t.Method(i)
+		fmt.Printf("Method %d: %s\n", i, method.Name)
 	}
 
-	// 💡 O/P:
-	// $ go run main.go
-	
+	// ✅ Directly invoke the "Greet" method by name
+	m := v.MethodByName("Greet")
+	if !m.IsValid() {
+		fmt.Println("❌ Method not found")
+		return
+	}
+
+	// Call the method with arguments using reflection
+	results := m.Call([]reflect.Value{
+		reflect.ValueOf("Skyy"),
+		reflect.ValueOf("Banerjee"),
+	})
+
+	// ✅ Extract and print the returned string
+	fmt.Println("Greet result:", results[0].String())
 }
+
+
+// O/P
+// $ go run main.go
+// Type: main.Greeter
+// Method 0: Greet
+// Greet result: Hello Skyy Banerjee
