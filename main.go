@@ -2,31 +2,48 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"os/exec"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
-// process spawning: interaction between process using Pipe()
+// stop/cont.
+
 func main() {
-	pr,pw:=io.Pipe()
-	cmd := exec.Command("grep","foo")
-	cmd.Stdin = pr
+	pid:= os.Getpid()
+	fmt.Println("🔵 Process ID:",pid)
+	sigs:= make(chan os.Signal,1)
+	done:= make(chan bool, 1)
+
+	// Notify channel on interrupt or terminate signals
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		defer pw.Close()
-		pw.Write([]byte("food is good\nbar\nbaz\n"))
+		sig:= <-sigs
+		fmt.Println("We recievd signal:",sig)
+		done<-true
 	}()
 
-	output,err:=cmd.Output()
+	go func() {
 
-	if err!=nil{
-		fmt.Println("⚠️ ERROR:",err)
-		return
+		for {
+			select{
+			case <-done:
+				fmt.Println("Stopping work, due to signal.")
+				return
+			default:
+				fmt.Println("🟢 Working..")	
+				time.Sleep(time.Second)
+			}
+		}
+
+	}()
+	for {
+		time.Sleep(time.Second)
 	}
 
-	fmt.Println("✅ Output:",string(output))
+	// 💡 O/P:
+	// $ go run main.go
 	
 }
-
-//OP: ✅ Output: food is good
-
